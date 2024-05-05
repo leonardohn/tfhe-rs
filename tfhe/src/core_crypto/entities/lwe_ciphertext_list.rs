@@ -50,8 +50,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
     /// let lwe_ciphertext_count = LweCiphertextCount(3);
     /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
-    /// // Create a new LweCiphertextList
+    /// // Create a new LweCiphertextList and fill it using copies of a single element
     /// let lwe_list = LweCiphertextList::new(0u64, lwe_size, lwe_ciphertext_count, ciphertext_modulus);
+    ///
+    /// assert_eq!(lwe_list.lwe_size(), lwe_size);
+    /// assert_eq!(lwe_list.lwe_ciphertext_count(), lwe_ciphertext_count);
+    /// assert_eq!(lwe_list.ciphertext_modulus(), ciphertext_modulus);
+    ///
+    /// // Alternatively, create a new LweCiphertextList and fill it using a function
+    /// let lwe_list = LweCiphertextList::from_fn(lwe_size, lwe_ciphertext_count, ciphertext_modulus, |i| {
+    ///     // Here, the `i` value represents the index that is being filled
+    ///     // For every index `i`, we fill its value using the formula `i * 2`
+    ///     (i as u64) * 2
+    /// });
     ///
     /// assert_eq!(lwe_list.lwe_size(), lwe_size);
     /// assert_eq!(lwe_list.lwe_ciphertext_count(), lwe_ciphertext_count);
@@ -165,6 +176,32 @@ impl<Scalar: UnsignedInteger> LweCiphertextListOwned<Scalar> {
             lwe_size,
             ciphertext_modulus,
         )
+    }
+
+    /// Allocate memory and create a new owned [`LweCiphertextList`], where each element
+    /// is provided by the `fill_with` function, invoked for each consecutive index.
+    ///
+    /// # Note
+    ///
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to encrypt data you need to use
+    /// [`crate::core_crypto::algorithms::encrypt_lwe_ciphertext_list`] or its parallel variant
+    /// [`crate::core_crypto::algorithms::par_encrypt_lwe_ciphertext_list`] using this list as
+    /// output.
+    ///
+    /// See [`LweCiphertextList::from_container`] for usage.
+    pub fn from_fn<F>(
+        lwe_size: LweSize,
+        ciphertext_count: LweCiphertextCount,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+        fill_with: F,
+    ) -> Self
+    where
+        F: FnMut(usize) -> Scalar,
+    {
+        let container_size = lwe_size.0 * ciphertext_count.0;
+        let container: Vec<_> = (0..container_size).map(fill_with).collect();
+        Self::from_container(container, lwe_size, ciphertext_modulus)
     }
 }
 
